@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JohnnyPinasLive.ph - Community Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #f0f2f5; }
+        #header { background: #1877f2; color: white; padding: 15px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        #map { height: 450px; width: 90%; margin: 20px auto; border-radius: 15px; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .controls { padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        input, textarea { width: 80%; max-width: 400px; padding: 12px; margin: 8px; border-radius: 10px; border: 1px solid #ddd; font-size: 16px; }
+        button { background: #42b72a; color: white; border: none; padding: 12px 30px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 18px; transition: 0.3s; }
+        button:hover { background: #36a420; transform: scale(1.05); }
+        .footer { text-align: center; color: #65676b; font-size: 12px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <h1>JohnnyPinasLive.ph 🇵🇭</h1>
+    <p>Live Community Updates from Cebu to Manila</p>
+</div>
+
+<div id="map"></div>
+
+<div class="controls">
+    <h3>📢 Post a Live Update</h3>
+    <input type="text" id="userName" placeholder="Your Name (e.g. Johnny)">
+    <textarea id="statusUpdate" rows="3" placeholder="What's happening in your area? (e.g. Road construction in Naga City)"></textarea>
+    <button onclick="postToMap()">Post to Map</button>
+</div>
+
+<div class="footer">Created by Johnny Ang | © 2026</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // YOUR SECURE FIREBASE CONFIG
+    const firebaseConfig = {
+      apiKey: "AIzaSyAF_aWNBv5uACkRPpLywcrJKjU9D0EjhZ8",
+      authDomain: "johnnypinaslive.firebaseapp.com",
+      databaseURL: "https://johnnypinaslive-default-rtdb.firebaseio.com",
+      projectId: "johnnypinaslive",
+      storageBucket: "johnnypinaslive.firebasestorage.app",
+      messagingSenderId: "755828275985",
+      appId: "1:755828275985:web:1c80f5367d7d409f6daab0"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const postsRef = ref(db, 'posts');
+
+    // 1. Setup the Map (Centered on Philippines)
+    const map = L.map('map').setView([12.8797, 121.7740], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    // 2. Function to Post to Firebase
+    window.postToMap = function() {
+        const name = document.getElementById('userName').value;
+        const text = document.getElementById('statusUpdate').value;
+        
+        if(name && text) {
+            // Random spot near Minglanilla/Cebu area for this test!
+            const lat = 10.245 + (Math.random() * 0.2);
+            const lng = 123.790 + (Math.random() * 0.2);
+
+            push(postsRef, {
+                username: name,
+                message: text,
+                coords: [lat, lng],
+                timestamp: Date.now()
+            });
+
+            document.getElementById('statusUpdate').value = "";
+            alert("Your update is LIVE on the map!");
+        } else {
+            alert("Please enter your name and a message!");
+        }
+    }
+
+    // 3. Listen for new posts and put them on the map instantly
+    onChildAdded(postsRef, (data) => {
+        const post = data.val();
+        L.marker(post.coords).addTo(map)
+            .bindPopup(`<b>${post.username}</b><br>${post.message}`)
+            .openPopup();
+    });
+</script>
+
+</body>
+</html>
