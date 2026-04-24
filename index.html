@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JohnnyPinasLive.ph - Professional Map</title>
+    <title>JohnnyPinasLive.ph - Pro Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         #map { height: 100vh; width: 100%; }
         
-        /* Professional UI Panel */
         .ui-panel { 
             position: absolute; top: 15px; left: 15px; z-index: 1000; 
             background: rgba(255, 255, 255, 0.95); padding: 20px; 
@@ -23,8 +22,9 @@
         }
         button { 
             width: 100%; background: #42b72a; color: white; border: none; 
-            padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold;
+            padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 8px;
         }
+        .loc-btn { background: #1877f2; }
     </style>
 </head>
 <body>
@@ -35,7 +35,10 @@
     <h3>JohnnyPinasLive.ph</h3>
     <input type="text" id="userName" placeholder="Your Name">
     <textarea id="statusUpdate" rows="2" placeholder="What's happening?"></textarea>
+    
+    <button class="loc-btn" onclick="getLocation()">📍 Get My Location</button>
     <button onclick="postToMap()">Post to Map</button>
+    <small id="statusText" style="color: #666; display: block; text-align: center;">Status: Ready</small>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -43,10 +46,6 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-    // Check if you are in Admin Mode (add ?admin=true to your URL)
-    const urlParams = new URLSearchParams(window.location.search);
-    const isAdmin = urlParams.get('admin') === 'true';
 
     const firebaseConfig = {
       apiKey: "AIzaSyAF_aWNBv5uACkRPpLywcrJKjU9D0EjhZ8",
@@ -65,6 +64,25 @@
     const map = L.map('map').setView([10.245, 123.790], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+    let currentLat = 10.245;
+    let currentLng = 123.790;
+
+    window.getLocation = function() {
+        const status = document.getElementById('statusText');
+        status.innerText = "Finding location...";
+        
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                currentLat = pos.coords.latitude;
+                currentLng = pos.coords.longitude;
+                status.innerText = "✅ Location Locked!";
+                map.setView([currentLat, currentLng], 16);
+            }, () => {
+                status.innerText = "❌ Location Failed";
+            });
+        }
+    }
+
     window.postToMap = function() {
         const name = document.getElementById('userName').value;
         const text = document.getElementById('statusUpdate').value;
@@ -72,9 +90,8 @@
             push(postsRef, { 
                 username: name, 
                 message: text, 
-                coords: [10.245 + (Math.random()*0.01), 123.790 + (Math.random()*0.01)],
-                timestamp: Date.now(),
-                friendId: "USER_" + Math.floor(Math.random() * 10000) 
+                coords: [currentLat, currentLng],
+                timestamp: Date.now()
             });
             document.getElementById('statusUpdate').value = "";
             alert("Posted successfully!");
@@ -83,19 +100,9 @@
 
     onChildAdded(postsRef, (data) => {
         const post = data.val();
-        // Readable Time Formatting
         const time = new Date(post.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
-        let content = `<b>${post.username}</b><br>${post.message}<br><small style="color:#666">${time}</small>`;
-        
-        // Admin View: Only visible if ?admin=true is in the URL
-        if(isAdmin) {
-            content += `<br><b style="color:red">Admin ID: ${post.friendId}</b>`;
-        }
-
-        L.marker(post.coords).addTo(map).bindPopup(content);
+        L.marker(post.coords).addTo(map).bindPopup(`<b>${post.username}</b><br>${post.message}<br><small>${time}</small>`);
     });
 </script>
-
 </body>
 </html>
