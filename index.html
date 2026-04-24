@@ -9,9 +9,9 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #f0f2f5; }
         #header { background: #1877f2; color: white; padding: 15px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         #map { height: 450px; width: 90%; margin: 20px auto; border-radius: 15px; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .controls { padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        input, textarea { width: 80%; max-width: 400px; padding: 12px; margin: 8px; border-radius: 10px; border: 1px solid #ddd; font-size: 16px; }
-        button { background: #42b72a; color: white; border: none; padding: 12px 30px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 18px; transition: 0.3s; }
+        .controls { padding: 20px; display: flex; flex-direction: column; align-items: center; background: white; margin: 10px; border-radius: 15px; }
+        input, textarea, select { width: 80%; max-width: 400px; padding: 12px; margin: 8px; border-radius: 10px; border: 1px solid #ddd; font-size: 16px; }
+        button { background: #42b72a; color: white; border: none; padding: 12px 30px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 18px; transition: 0.3s; margin-top: 10px; }
         button:hover { background: #36a420; transform: scale(1.05); }
         .footer { text-align: center; color: #65676b; font-size: 12px; margin-top: 20px; }
     </style>
@@ -20,16 +20,28 @@
 
 <div id="header">
     <h1>JohnnyPinasLive.ph 🇵🇭</h1>
-    <p>Live Community Updates from Cebu to Manila</p>
+    <p>Live Community Updates & Traffic Flow</p>
 </div>
 
 <div id="map"></div>
 
 <div class="controls">
     <h3>📢 Post a Live Update</h3>
-    <input type="text" id="userName" placeholder="Your Name (e.g. Johnny)">
-    <textarea id="statusUpdate" rows="3" placeholder="What's happening in your area? (e.g. Road construction in Naga City)"></textarea>
+    <input type="text" id="userName" placeholder="Your Name">
+    <textarea id="statusUpdate" rows="2" placeholder="What's happening?"></textarea>
     <button onclick="postToMap()">Post to Map</button>
+
+    <hr style="width: 80%; margin: 20px 0;">
+
+    <h3>🚦 Report Traffic Flow</h3>
+    <input type="text" id="startCoord" placeholder="Start (Lat,Lng) e.g. 10.24,123.79">
+    <input type="text" id="endCoord" placeholder="End (Lat,Lng) e.g. 10.25,123.80">
+    <select id="trafficStatus">
+        <option value="#42b72a">🟢 Clear Flow</option>
+        <option value="#ffcc00">🟡 Slow Traffic</option>
+        <option value="#ff3333">🔴 Heavy/Blocked</option>
+    </select>
+    <button onclick="postTraffic()" style="background: #1877f2;">Post Traffic Line</button>
 </div>
 
 <div class="footer">Created by Johnny Ang | © 2026</div>
@@ -38,9 +50,8 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded, onChildChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // YOUR SECURE FIREBASE CONFIG
     const firebaseConfig = {
       apiKey: "AIzaSyAF_aWNBv5uACkRPpLywcrJKjU9D0EjhZ8",
       authDomain: "johnnypinaslive.firebaseapp.com",
@@ -51,55 +62,54 @@
       appId: "1:755828275985:web:1c80f5367d7d409f6daab0"
     };
 
-    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const postsRef = ref(db, 'posts');
+    const trafficRef = ref(db, 'traffic');
 
-    // 1. Setup the Map (Centered on Philippines)
     const map = L.map('map').setView([12.8797, 121.7740], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    // 2. Function to Post to Firebase
+    // Post Update
     window.postToMap = function() {
         const name = document.getElementById('userName').value;
         const text = document.getElementById('statusUpdate').value;
-        
         if(name && text) {
-            // Random spot near Minglanilla/Cebu area for this test!
             const lat = 10.245 + (Math.random() * 0.2);
             const lng = 123.790 + (Math.random() * 0.2);
-
-            push(postsRef, {
-                username: name,
-                message: text,
-                coords: [lat, lng],
-                timestamp: Date.now()
-            });
-
+            push(postsRef, { username: name, message: text, coords: [lat, lng], timestamp: Date.now() });
             document.getElementById('statusUpdate').value = "";
-            alert("Your update is LIVE on the map!");
-        } else {
-            alert("Please enter your name and a message!");
+            alert("Update Posted!");
         }
     }
 
-    // 3. Listen for new posts and put them on the map instantly
+    // Post Traffic
+    window.postTraffic = function() {
+        const start = document.getElementById('startCoord').value.split(',');
+        const end = document.getElementById('endCoord').value.split(',');
+        const color = document.getElementById('trafficStatus').value;
+
+        if(start.length === 2 && end.length === 2) {
+            push(trafficRef, {
+                start: [parseFloat(start[0]), parseFloat(start[1])],
+                end: [parseFloat(end[0]), parseFloat(end[1])],
+                color: color
+            });
+            alert("Traffic line posted!");
+        } else {
+            alert("Enter coordinates as: Lat,Lng");
+        }
+    }
+
+    // Listeners
     onChildAdded(postsRef, (data) => {
         const post = data.val();
-        L.marker(post.coords).addTo(map)
-            .bindPopup(`<b>${post.username}</b><br>${post.message}`)
-            .openPopup();
+        L.marker(post.coords).addTo(map).bindPopup(`<b>${post.username}</b><br>${post.message}`);
     });
 
-    // 4. Online Alarm Logic
-    // This watches the 'users' folder. If any user status changes to 'online', it triggers an alert.
-    const usersRef = ref(db, 'users');
-    onChildChanged(usersRef, (snapshot) => {
-        const user = snapshot.val();
-        if (user.status === 'online') {
-            alert(`📢 Alert: ${user.username} is now online!`);
-        }
+    onChildAdded(trafficRef, (data) => {
+        const line = data.val();
+        L.polyline([line.start, line.end], { color: line.color, weight: 6, opacity: 0.8 }).addTo(map);
     });
 </script>
 
