@@ -38,7 +38,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, push, onChildAdded, onChildChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
     // YOUR SECURE FIREBASE CONFIG
     const firebaseConfig = {
@@ -90,6 +90,16 @@
         L.marker(post.coords).addTo(map)
             .bindPopup(`<b>${post.username}</b><br>${post.message}`)
             .openPopup();
+    });
+
+    // 4. Online Alarm Logic
+    // This watches the 'users' folder. If any user status changes to 'online', it triggers an alert.
+    const usersRef = ref(db, 'users');
+    onChildChanged(usersRef, (snapshot) => {
+        const user = snapshot.val();
+        if (user.status === 'online') {
+            alert(`📢 Alert: ${user.username} is now online!`);
+        }
     });
 </script>
 
